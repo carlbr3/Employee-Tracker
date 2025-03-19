@@ -1,15 +1,17 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Import and require Pool (node-postgres)
+// We'll be creating a Connection Pool. Read up on the benefits here: https://node-postgres.com/features/pooling
 import pg from 'pg';
 const { Pool } = pg;
 
 const pool = new Pool({
   user: process.env.DB_USER,
-  host: 'localhost',
-  database: process.env.DB_DATABASE,
   password: process.env.DB_PASSWORD,
-  port: 5432
+  host: 'localhost',
+  database: process.env.DB_NAME,
+  port: 5432,
 });
 
 const connectToDb = async () => {

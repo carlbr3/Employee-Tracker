@@ -1,6 +1,6 @@
-import inquirer from 'inquirer';
+import inquirer from "inquirer";
 import { QueryResult } from 'pg';
-import { pool } from './connection.js';
+import { pool, connectToDb } from './connection.js';
 
 function mainMenu(): void {
     inquirer
@@ -16,11 +16,12 @@ function mainMenu(): void {
             'Add a Department',
             'Add a Role',
             'Add an Employee',
+            'Update an Employee Role',
             'Exit',
           ],
         },
       ])
-      .then((answers: { choice: string }) => {
+      .then((answers) => {
         //evaluate feedback
         if (answers.choice === 'View all Departments'){
           viewAllDepartments();
@@ -37,8 +38,11 @@ function mainMenu(): void {
         if (answers.choice === 'Add a Role') {
           addARole();
         }
-        if (answers.choice == 'Add an Employee'){
+        if (answers.choice === 'Add an Employee'){
           addAnEmployee();
+        }
+        if (answers.choice === 'Update an Employee Role'){
+          updateEmployeeRole();
         }
         if (answers.choice === 'Exit'){
           pool.end();
@@ -55,12 +59,19 @@ function mainMenu(): void {
             console.log(err);
           }else if (result){
             console.table(result.rows);
+            // const formattedRows = result.rows.map(({ id, title, salary, name }) => ({
+            //   ID: id,
+            //   Title: title,
+            //   Salary: salary,
+            //   Department: name
+            // }));
+            // console.table(formattedRows);
           }
           mainMenu();
         } )
     }
     function viewAllRoles(): void {
-      pool.query(`SELECT role.id, title, salary, department.name 
+      pool.query(`SELECT role.id, title, salary, department.name AS department
         FROM role 
         JOIN department on role.department_id = department.id;`, (err: Error, result: QueryResult) => {
         if (err) {
@@ -99,7 +110,7 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
           message: 'What is the name of the department?',
         }
       ])
-      .then ((answers: { [key: string]: any }) => {
+      .then ((answers) => {
         const userDepartment = answers.userDepartment;
         pool.query(`INSERT INTO department (name) VALUES ($1)`,[userDepartment], (err: Error, result: QueryResult) => {
           if (err) {
@@ -117,7 +128,7 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
         if (err) {
           console.log(err);
         } else if (result) {
-          const departmentNames = result.rows.map((row: { name: string }) => row.name);
+          const departmentNames = result.rows.map(row => row.name);
           //console.log (departmentNames);
         
         inquirer
@@ -139,7 +150,7 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
           choices: departmentNames
         }
       ])
-      .then ((answers: { roleName: string; roleSalary: string; roleDepartment: string }) => {
+      .then ((answers) => {
         const { roleName, roleSalary, roleDepartment } = answers;
         pool.query(
           // This is a parameterized query that utilizes a subquery to find the department ID based on the department name.
@@ -170,13 +181,13 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
         if (err) {
           console.log(err);
         } else if (result) {
-          const roleNames = result.rows.map((row: { title: string }) => row.title);
+          const roleNames = result.rows.map(row => row.title);
   
       pool.query (`SELECT id, CONCAT (first_name, ' ', last_name) AS "Manager Name" FROM employee`, (err: Error, result: QueryResult) => {
         if (err) {
           console.log(err);
         } else if (result) {
-            const managers: { name: string, value: number | null }[] = result.rows.map((row: { "Manager Name": string, id: number }) => ({ name: row["Manager Name"], value: row.id }));
+          const managers = result.rows.map(row => ({ name: row["Manager Name"], value: row.id}));
           managers.unshift({ name: 'None', value: null })
         inquirer
         .prompt ([
@@ -203,7 +214,7 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
           choices: managers
         }
       ])
-      .then ((answers: { employeeFirstName: string; employeeLastName: string; roleName: string; managerId: number | null }) => {
+      .then ((answers) => {
         const { employeeFirstName, employeeLastName, roleName, managerId } = answers;
         pool.query(
           `INSERT INTO employee (first_name, last_name, role_id, manager_id)
@@ -225,7 +236,57 @@ LEFT JOIN employee AS manager ON employee.manager_id = manager.id;`,
 }
 });
 }
+function updateEmployeeRole(): void {
+  // Get the employee list
+  pool.query(`SELECT id, CONCAT(first_name, ' ', last_name) AS "Employee Name" FROM employee`, (err: Error, result: QueryResult) => {
+    if (err) {
+      console.log(err);
+    } else if (result) {
+      const employees = result.rows.map(row => ({ name: row["Employee Name"], value: row.id }));
+
+      // Get the role list
+      pool.query(`SELECT DISTINCT title FROM role`, (err: Error, result: QueryResult) => {
+        if (err) {
+          console.log(err);
+        } else if (result) {
+          const roleNames = result.rows.map(row => row.title);
+
+          inquirer
+            .prompt([
+              {
+                type: 'list',
+                name: 'employeeId',
+                message: 'Which employee\'s role do you want to update?',
+                choices: employees
+              },
+              {
+                type: 'list',
+                name: 'roleName',
+                message: 'Which role do you want to assign to the selected employee?',
+                choices: roleNames
+              }
+            ])
+            .then((answers) => {
+              const { employeeId, roleName } = answers;
+              pool.query(
+                `UPDATE employee SET role_id = (SELECT id FROM role WHERE title = $1) WHERE id = $2`,
+                [roleName, employeeId],
+                (err: Error, _result: QueryResult) => {
+                  if (err) {
+                    console.log(err);
+                  } else {
+                    console.log(`Updated role for employee.`);
+                  }
+                  mainMenu();
+                }
+              );
+            });
+        }
+      });
+    }
+  });
+}
 
 //function calls to start the program
-  // await connecttoDB();
+  await connectToDb();
   mainMenu();
