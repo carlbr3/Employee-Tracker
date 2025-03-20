@@ -1,4 +1,5 @@
 -- TODO: Test these entries
+\c company_db;
 
 INSERT INTO department (name) VALUES
     ('Sales'),
