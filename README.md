@@ -6,7 +6,7 @@ Employee Tracking Database with PostgreSQL
 
 Having to create interfaces that allow non-developers to easily view and interact with the information stored in the databases.  The interfaces are called ``content managment systems (CMS)``. This is a command-line application to help manage any companies employee database with the help of ``PostgreSQL``.
 
-Demo Video can be found [here]().
+Demo Video can be found [here](https://drive.google.com/file/d/1xLVdrpevH3gukOtIHYFfjxT5Y3VluX_9/view).
 
 ## Installation
 
